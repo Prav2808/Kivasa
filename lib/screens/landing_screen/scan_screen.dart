@@ -1,0 +1,142 @@
+// ignore_for_file: unnecessary_import, prefer_typing_uninitialized_variables, prefer_const_constructors
+
+// ignore: unused_import
+import 'dart:developer';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:kivasa/constants/colors_constants.dart';
+import 'package:kivasa/constants/icon_constants.dart';
+import 'package:kivasa/utills/navigation_rought.dart';
+import 'package:qr_code_scanner/qr_code_scanner.dart';
+
+import 'package:webview_flutter/webview_flutter.dart';
+import '../../../utills/custom_appbar.dart';
+
+String webview = "";
+
+class Scan extends StatefulWidget {
+  const Scan({Key? key}) : super(key: key);
+  @override
+  State<StatefulWidget> createState() => _ScanState();
+}
+
+class _ScanState extends State<Scan> {
+  Barcode? result;
+  QRViewController? controller;
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  var h, w;
+  @override
+  Widget build(BuildContext context) {
+    h = MediaQuery.of(context).size.height;
+    w = MediaQuery.of(context).size.width;
+    return Scaffold(
+      floatingActionButton: Padding(
+          padding: EdgeInsets.only(left: w * 0.0969),
+          child:
+              Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
+            InkWell(
+                onTap: () {
+                  Navigator.pop(context);
+                },
+                child: Icon(
+                  Icons.clear,
+                  color: buttonclr,
+                  size: h * 0.05,
+                )),
+            InkWell(
+                onTap: () async {
+                  await controller?.toggleFlash();
+                  setState(() {});
+                },
+                child: FutureBuilder(
+                  future: controller?.getFlashStatus(),
+                  builder: (context, snapshot) {
+                    return Image.asset(
+                      flashlight,
+                      height: h * 0.05,
+                      width: w * 0.1108,
+                      color: buttonclr,
+                    );
+                  },
+                ))
+          ])),
+      body: Stack(
+        children: [
+          Column(
+            children: [
+              Expanded(flex: 4, child: _buildQrView(context)),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildQrView(BuildContext context) {
+    var scanArea = (MediaQuery.of(context).size.width < w * 2.216 ||
+            MediaQuery.of(context).size.height < h * 1)
+        ? 300.0
+        : 600.0;
+    return QRView(
+      key: qrKey,
+      onQRViewCreated: _onQRViewCreated,
+      overlay: QrScannerOverlayShape(
+          borderColor: Colors.red,
+          borderRadius: h * 0.0125,
+          borderLength: h * 0.0375,
+          borderWidth: w * 0.0277,
+          cutOutSize: scanArea),
+      onPermissionSet: (ctrl, p) => _onPermissionSet(context, ctrl, p),
+    );
+  }
+
+  void _onQRViewCreated(QRViewController controller) {
+    setState(() {
+      this.controller = controller;
+    });
+    controller.scannedDataStream.listen((scanData) {
+      setState(() {
+        if (scanData.code != null) {
+          webview = scanData.code ?? "";
+          push_to(context, Scanweb());
+          controller.dispose();
+        }
+      });
+    });
+  }
+
+  void _onPermissionSet(BuildContext context, QRViewController ctrl, bool p) {
+    if (!p) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('no Permission')),
+      );
+    }
+  }
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
+  }
+}
+
+class Scanweb extends StatefulWidget {
+  const Scanweb({super.key});
+
+  @override
+  State<Scanweb> createState() => _ScanwebState();
+}
+
+class _ScanwebState extends State<Scanweb> {
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: custom_appbr(context),
+      body: WebView(
+        initialUrl: webview,
+        javascriptMode: JavascriptMode.unrestricted,
+      ),
+    );
+  }
+}
